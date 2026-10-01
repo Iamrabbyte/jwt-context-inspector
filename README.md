@@ -1,14 +1,16 @@
 # JWT Context Inspector
 
-A small defensive CLI tool for inspecting JWT header and payload claims during authorized security testing.
+A small defensive CLI tool for inspecting JWT header and payload metadata during authorized security testing.
 
-The tool decodes JWT contents and highlights security-relevant context such as issuer, subject, audience, expiration, and tenant-related claims.
+The tool decodes JWT contents and performs lightweight security-oriented review of common authentication and authorization context.
 
 It is intended for inspection, debugging, documentation, and authorized security review.
 
 ## Features
 
-The tool currently reviews the following claims:
+JWT Context Inspector currently reviews:
+
+### Payload Claims
 
 - `iss`
 - `sub`
@@ -21,7 +23,33 @@ The tool currently reviews the following claims:
 - `tenantId`
 - `tid`
 
-It also provides simple context warnings when common claims are missing.
+### Header Security Context
+
+The tool also reviews common JWT header fields, including:
+
+- `alg`
+- `kid`
+- `jku`
+- `x5u`
+
+Security-oriented warnings are produced when potentially sensitive or risky metadata is observed.
+
+Examples include:
+
+- unsigned tokens using `alg: none`
+- missing issuer or audience claims
+- missing common tenant-binding claims
+- expired tokens
+- tokens that are not valid yet
+- unusually long token lifetimes
+- future `iat` values
+- `kid`-based key selection
+- remote JWK references through `jku`
+- remote certificate references through `x5u`
+
+These warnings provide review context only.
+
+They do not prove that a vulnerability exists.
 
 ## Usage
 
@@ -35,9 +63,9 @@ You can also provide a token through standard input:
 
 ## Example
 
-    python jwt_inspector.py eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJzeW50aGV0aWMtdXNlciIsImF1ZCI6ImRlbW8tYXBpIiwidGVuYW50X2lkIjoibGFiLXRlbmFudCIsImV4cCI6MTg5MzQ1NjAwMH0.
+The following token is synthetic and intentionally uses `alg: none` so the security review behavior can be demonstrated.
 
-The token above is synthetic and included only for demonstration.
+    python jwt_inspector.py eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJzdWIiOiJzeW50aGV0aWMtdXNlciIsImF1ZCI6ImRlbW8tYXBpIiwidGVuYW50X2lkIjoibGFiLXRlbmFudCIsImV4cCI6MTg5MzQ1NjAwMH0.
 
 ## Example Output
 
@@ -72,19 +100,51 @@ The token above is synthetic and included only for demonstration.
     [+] Tenant-related claim is present.
     [+] Expiration claim is present.
 
-    Note: decoding a JWT does NOT verify its signature, authenticity, or authorization scope.
+    === Security Review ===
+    [!] Algorithm is 'none'. Token is unsigned.
+    [+] Token has not expired.
+    [!] No issuer ('iss') claim observed.
+
+    Note: decoding and reviewing JWT metadata does NOT verify its signature, authenticity, trust, or authorization scope.
+
+The exact remaining lifetime value depends on the current system time.
 
 ## Why This Exists
 
-During API and multi-tenant security assessments, it is often useful to quickly inspect whether a JWT contains claims that bind it to:
+During API and multi-tenant security assessments, reviewing JWT context often requires more than simply decoding the token.
 
-- a specific issuer;
-- an intended audience;
-- a tenant context;
-- a subject;
-- a defined lifetime.
+Useful questions include:
 
-This tool provides a lightweight command-line view of that information without requiring a browser-based decoder.
+- Which algorithm is declared?
+- Is the token unsigned?
+- Is an issuer defined?
+- Is an audience defined?
+- Is the token expired?
+- Is it valid yet?
+- How long is its declared lifetime?
+- Does it contain tenant-binding context?
+- Does the header reference external key material?
+- Does key selection depend on `kid`?
+
+JWT Context Inspector provides a lightweight command-line view of these signals without requiring a browser-based decoder.
+
+## Security Review Scope
+
+The tool performs static metadata analysis only.
+
+It can identify conditions that deserve manual review, but it does not determine whether the receiving application is vulnerable.
+
+For example, the presence of:
+
+- `kid`
+- `jku`
+- `x5u`
+- a missing audience
+- a missing tenant claim
+
+is not automatically a security vulnerability.
+
+Security impact depends on how the receiving application validates and uses those values.
 
 ## Security Note
 
@@ -92,12 +152,14 @@ Decoding a JWT is not the same as verifying it.
 
 This tool does not confirm:
 
-- whether the signature is valid;
-- whether the issuer is trusted;
-- whether the token is currently authorized;
-- whether the claims are actually enforced by the receiving application.
+- whether the JWT signature is valid
+- whether the issuer is trusted
+- whether the signing key is legitimate
+- whether the token is currently authorized
+- whether claims are enforced by the receiving application
+- whether tenant isolation is correctly implemented
 
-A decoded token should not be treated as trusted without proper cryptographic verification and server-side authorization checks.
+A decoded token should not be treated as trusted without cryptographic verification and server-side authorization checks.
 
 ## Scope
 
@@ -105,14 +167,15 @@ This project intentionally does not include offensive token-manipulation feature
 
 It does not perform:
 
-- token forgery;
-- secret cracking;
-- signature bypass attempts;
-- algorithm-confusion exploitation;
-- brute force;
-- automated authentication attacks.
+- token forgery
+- secret cracking
+- signature bypass attempts
+- algorithm-confusion exploitation
+- brute force
+- automated authentication attacks
+- remote exploitation
 
-The project is focused on inspection and analysis.
+The project is focused on inspection, defensive review, and security context analysis.
 
 ## Requirements
 
@@ -129,6 +192,34 @@ Clone the repository:
 Run the tool:
 
     python jwt_inspector.py <JWT>
+
+## Tests
+
+The project includes unit tests for decoding behavior and security-review logic.
+
+Run the complete test suite with:
+
+    python -m unittest discover -s tests -v
+
+Current test coverage includes:
+
+- Base64URL decoding
+- JSON payload decoding
+- malformed segment rejection
+- non-object JSON rejection
+- `alg: none` detection
+- normal algorithm reporting
+- `kid`, `jku`, and `x5u` header review
+- expired token detection
+- future `nbf` detection
+- unusually long token lifetime detection
+- missing issuer, audience, and tenant-binding warnings
+
+Current test result:
+
+    Ran 11 tests
+
+    OK
 
 ## Responsible Use
 
