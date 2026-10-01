@@ -1,5 +1,7 @@
 # JWT Context Inspector
 
+[![Tests](https://github.com/Iamrabbyte/jwt-context-inspector/actions/workflows/tests.yml/badge.svg)](https://github.com/Iamrabbyte/jwt-context-inspector/actions/workflows/tests.yml)
+
 A small defensive CLI tool for inspecting JWT header and payload metadata during authorized security testing.
 
 The tool decodes JWT contents and performs lightweight security-oriented review of common authentication and authorization context.
@@ -220,6 +222,18 @@ Current test result:
     Ran 11 tests
 
     OK
+
+## Continuous Integration
+
+The test suite runs automatically through GitHub Actions on pushes and pull requests.
+
+The workflow currently validates the project against multiple Python versions.
+
+## License
+
+This project is released under the MIT License.
+
+See [LICENSE](LICENSE).
 
 ## Responsible Use
 
